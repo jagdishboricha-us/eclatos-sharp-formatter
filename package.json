@@ -1,0 +1,53 @@
+{
+  "name": "sharp-formatter",
+  "displayName": "Eclatos Sharp Formatter",
+  "description": "This extension is for formatter C# code.",
+  "version": "0.0.1",
+  "publisher": "Eclatos",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jagdishboricha-us/eclatos-sharp-formatter.git"
+  },
+  "author": {
+    "name": "Jagdish Boricha", 
+    "email": "jagdish.boricha@outlook.com"
+  },
+  "engines": {
+    "vscode": "^1.118.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [ "onLanguage:csharp" ],
+  "main": "./dist/extension.js",
+  "contributes": { },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/emscripten": "^1.41.5",
+    "@types/node": "^22.19.19",
+    "@types/vscode": "^1.118.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.3",
+    "eslint": "^9.39.3",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.26.8"
+  }
+}

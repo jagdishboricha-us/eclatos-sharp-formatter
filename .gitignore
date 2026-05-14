@@ -1,0 +1,21 @@
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+out/
+
+# VS Code specific
+.vscode-test/
+*.vsix
+
+# TypeScript / Javascript
+*.tsbuildinfo
+npm-debug.log*
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Tree-sitter WASM (If you want to force users to download/build it themselves)
+# tree-sitter-c_sharp.wasm
