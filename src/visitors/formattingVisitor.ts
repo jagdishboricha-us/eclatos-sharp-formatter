@@ -77,6 +77,7 @@ export class FormattingVisitor {
                 break;
 
             case 'object_initializer':
+            case 'initializer_expression':
                 this.handleObjectInitializer(node, indentLevel);
                 break;
 
@@ -533,25 +534,29 @@ export class FormattingVisitor {
 
         let targetIndentLevel = indentLevel;
 
-        // 1. Apply specific spacing logic for fluent chained method calls (e.g. .Select().Where())
         if (memberAccess && memberAccess.type === 'member_access_expression') {
             if (memberAccess.child(0)?.type === 'invocation_expression') {
                 const dotNode = memberAccess.children.find(c => c.type === '.');
-                if (dotNode && memberAccess.startPosition.row === dotNode.startPosition.row) {
+
+                if (dotNode) {
                     const previous = memberAccess.children[memberAccess.children.indexOf(dotNode) - 1];
                     if (previous) {
                         this.setGap(previous, dotNode, `\n${childIndentStr}`);
                     }
                 }
-                // If it's a chained call, we push the indent level up for its arguments
-                targetIndentLevel = targetIndentLevel + 1;
+                targetIndentLevel = indentLevel + 1;
             }
         }
 
-        // 2. CRITICAL FIX: Traverse ALL children of the invocation_expression.
-        // This ensures the 'member_access_expression' AND the 'argument_list' are both walked,
-        // allowing the visitor to reach lambdas and nested method calls like Results.Ok().
-        node.children.forEach(child => this.traverseNode(child, targetIndentLevel));
+        if (memberAccess) {
+            this.traverseNode(memberAccess, indentLevel);
+        }
+
+        node.children.forEach(child => {
+            if (child !== memberAccess) {
+                this.traverseNode(child, targetIndentLevel);
+            }
+        });
     }
 
     private handlePassThrough(node: Node, indentLevel: number) {

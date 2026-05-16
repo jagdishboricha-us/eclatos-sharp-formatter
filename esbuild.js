@@ -46,26 +46,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 `,
 		},
-
+		plugins: [esbuildProblemMatcherPlugin],
 	});
+
+	if (watch) {
+		await ctx.watch();
+	} else {
+		await ctx.rebuild();
+		await ctx.dispose();
+	}
+	
 	const wasmSource = path.join(__dirname, 'node_modules/web-tree-sitter/web-tree-sitter.wasm');
 	const wasmDest = path.join(__dirname, 'dist/web-tree-sitter.wasm');
 
 	if (fs.existsSync(wasmSource)) {
 		fs.copyFileSync(wasmSource, wasmDest);
-		console.log('Successfully moved web-tree-sitter.wasm to dist/');
-	}
-	if (watch) {
-		await ctx.watch();
-		if (fs.existsSync(wasmSource)) {
-			fs.copyFileSync(wasmSource, wasmDest);
-		}
-	} else {
-		await ctx.rebuild();
-		if (fs.existsSync(wasmSource)) {
-			fs.copyFileSync(wasmSource, wasmDest);
-		}
-		await ctx.dispose();
+		console.log('Successfully copied web-tree-sitter.wasm to dist/');
 	}
 }
 
