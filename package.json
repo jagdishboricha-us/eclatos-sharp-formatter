@@ -2,14 +2,14 @@
   "name": "sharp-formatter",
   "displayName": "Eclatos Sharp Formatter",
   "description": "This extension is for formatter C# code.",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "publisher": "Eclatos",
   "repository": {
     "type": "git",
     "url": "https://github.com/jagdishboricha-us/eclatos-sharp-formatter.git"
   },
   "author": {
-    "name": "Jagdish Boricha", 
+    "name": "Jagdish Boricha",
     "email": "jagdish.boricha@outlook.com"
   },
   "engines": {

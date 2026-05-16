@@ -1,4 +1,6 @@
 const esbuild = require("esbuild");
+const fs = require('fs');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -25,27 +27,44 @@ const esbuildProblemMatcherPlugin = {
 
 async function main() {
 	const ctx = await esbuild.context({
-		entryPoints: [
-			'src/extension.ts'
-		],
+		entryPoints: ['./src/extension.ts'],
 		bundle: true,
-		format: 'cjs',
-		minify: production,
-		sourcemap: !production,
-		sourcesContent: false,
+		outfile: './dist/extension.js',
+		external: ['vscode'],
+		format: 'esm',
 		platform: 'node',
-		outfile: 'dist/extension.js',
-		external: ['vscode', 'web-tree-sitter'],
-		logLevel: 'silent',
-		plugins: [
-			/* add to the end of plugins array */
-			esbuildProblemMatcherPlugin,
-		],
+		target: 'node18',
+		minify: process.argv.includes('--production'),
+		sourcemap: !process.argv.includes('--production'),
+		banner: {
+			js: `
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+`,
+		},
+
 	});
+	const wasmSource = path.join(__dirname, 'node_modules/web-tree-sitter/web-tree-sitter.wasm');
+	const wasmDest = path.join(__dirname, 'dist/web-tree-sitter.wasm');
+
+	if (fs.existsSync(wasmSource)) {
+		fs.copyFileSync(wasmSource, wasmDest);
+		console.log('Successfully moved web-tree-sitter.wasm to dist/');
+	}
 	if (watch) {
 		await ctx.watch();
+		if (fs.existsSync(wasmSource)) {
+			fs.copyFileSync(wasmSource, wasmDest);
+		}
 	} else {
 		await ctx.rebuild();
+		if (fs.existsSync(wasmSource)) {
+			fs.copyFileSync(wasmSource, wasmDest);
+		}
 		await ctx.dispose();
 	}
 }

@@ -2,10 +2,8 @@ import * as vscode from 'vscode';
 import { EclatosCSharpFormatter } from './formatter';
 
 export async function activate(context: vscode.ExtensionContext) {
-	console.log('Eclatos Standalone C# Formatter is now active.');
-
-	const formatter = new EclatosCSharpFormatter();
-	await formatter.init(context.extensionPath);
+	const formatter = new EclatosCSharpFormatter(context);
+	await formatter.init();
 
 	// Register natively as the default C# formatter provider
 	const formattingProvider = vscode.languages.registerDocumentFormattingEditProvider('csharp', {

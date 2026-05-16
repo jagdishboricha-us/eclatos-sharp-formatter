@@ -100,6 +100,21 @@ export class FormattingVisitor {
             const prev = i > 0 ? node.children[i - 1] : null;
 
             if (prev) {
+                // FIX: Specific inline rules for the file-scoped namespace signature
+                if (node.type === 'file_scoped_namespace_declaration') {
+                    if (prev.type === 'namespace') {
+                        this.setGap(prev, child, ' '); // Space after 'namespace'
+                        this.traverseNode(child, indentLevel);
+                        continue;
+                    }
+                    if (child.type === ';') {
+                        this.setGap(prev, child, ''); // Snug the semicolon to the identifier
+                        this.traverseNode(child, indentLevel);
+                        continue;
+                    }
+                }
+
+                // Default behavior for classes, interfaces, and standard compilation units
                 this.enforceVerticalSpacing(prev, child, indentLevel);
             }
             this.traverseNode(child, indentLevel);
@@ -416,10 +431,10 @@ export class FormattingVisitor {
                 this.setGap(current, next, shouldExpand ? `\n${indentStr}` : ' ');
             } else if (current.type === '{') {
                 this.setGap(current, next, shouldExpand ? `\n${childIndentStr}` : ' ');
+            } else if (next.type === '}') { // FIXED: Moved above the comma check!
+                this.setGap(current, next, shouldExpand ? `\n${indentStr}` : ' ');
             } else if (current.type === ',') {
                 this.setGap(current, next, shouldExpand ? `\n${childIndentStr}` : ' ');
-            } else if (next.type === '}') {
-                this.setGap(current, next, shouldExpand ? `\n${indentStr}` : ' ');
             } else if (next.type === ',') {
                 this.setGap(current, next, '');
             } else if (current.type === '=') {
@@ -516,6 +531,9 @@ export class FormattingVisitor {
         const childIndentStr = this.getIndent(indentLevel + 1);
         const memberAccess = node.childForFieldName('function');
 
+        let targetIndentLevel = indentLevel;
+
+        // 1. Apply specific spacing logic for fluent chained method calls (e.g. .Select().Where())
         if (memberAccess && memberAccess.type === 'member_access_expression') {
             if (memberAccess.child(0)?.type === 'invocation_expression') {
                 const dotNode = memberAccess.children.find(c => c.type === '.');
@@ -525,13 +543,15 @@ export class FormattingVisitor {
                         this.setGap(previous, dotNode, `\n${childIndentStr}`);
                     }
                 }
-                memberAccess.children.forEach(child => this.traverseNode(child, indentLevel + 1));
-            } else {
-                memberAccess.children.forEach(child => this.traverseNode(child, indentLevel));
+                // If it's a chained call, we push the indent level up for its arguments
+                targetIndentLevel = targetIndentLevel + 1;
             }
-        } else {
-            node.children.forEach(child => this.traverseNode(child, indentLevel));
         }
+
+        // 2. CRITICAL FIX: Traverse ALL children of the invocation_expression.
+        // This ensures the 'member_access_expression' AND the 'argument_list' are both walked,
+        // allowing the visitor to reach lambdas and nested method calls like Results.Ok().
+        node.children.forEach(child => this.traverseNode(child, targetIndentLevel));
     }
 
     private handlePassThrough(node: Node, indentLevel: number) {

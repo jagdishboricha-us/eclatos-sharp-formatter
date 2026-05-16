@@ -5,12 +5,12 @@ import { FormattingVisitor } from './visitors/formattingVisitor';
 export class EclatosCSharpFormatter {
     private treeSitterService: TreeSitterService;
 
-    constructor() {
+    constructor( private context: vscode.ExtensionContext) {
         this.treeSitterService = new TreeSitterService();
     }
 
-    public async init(extensionPath: string) {
-        await this.treeSitterService.initialize(extensionPath);
+    public async init() {
+        await this.treeSitterService.initialize(this.context.extensionPath);
     }
 
     public async formatDocument(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
