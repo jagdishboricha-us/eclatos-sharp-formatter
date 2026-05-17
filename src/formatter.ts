@@ -22,8 +22,12 @@ export class EclatosCSharpFormatter {
 
         if (!rootNode) { return []; }
 
-        // PURE AST PASS: No regex necessary anymore.
-        const visitor = new FormattingVisitor();
+        // Fetch the setting from VS Code (Defaults to 120)
+        const config = vscode.workspace.getConfiguration('eclatos-sharp-formatter');
+        const maxLineLength = config.get<number>('maxLineLength', 120);
+
+        // Pass the setting into the visitor
+        const visitor = new FormattingVisitor([], maxLineLength);
         visitor.traverseNode(rootNode, 0);
 
         return visitor.getEdits();
@@ -37,4 +41,5 @@ export class EclatosCSharpFormatter {
             await vscode.workspace.applyEdit(workspaceEdit);
         }
     }
+    
 }

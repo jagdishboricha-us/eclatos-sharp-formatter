@@ -4,9 +4,11 @@ import { Node } from 'web-tree-sitter';
 export class FormattingVisitor {
     private edits: vscode.TextEdit[];
     private formattedNodes: Set<number> = new Set();
+    private maxLineLength: number; // Store the setting
 
-    constructor(existingEdits: vscode.TextEdit[] = []) {
+    constructor(existingEdits: vscode.TextEdit[] = [], maxLineLength: number = 120) {
         this.edits = existingEdits;
+        this.maxLineLength = maxLineLength;
     }
 
     public getEdits(): vscode.TextEdit[] {
@@ -416,9 +418,9 @@ export class FormattingVisitor {
         );
         const propertyCount = hasProperties ? commas.length + 1 : 0;
 
-        const hasComplexType = node.children.some(c => this.isComplex(c));
-        const shouldExpand = hasComplexType || propertyCount > 3;
-
+        const hasComplexType = node.children.some(c => this.isComplex(c));        
+        const shouldExpand = hasComplexType || propertyCount > 3 || this.exceedsLineLength(node, 100);;
+        
         for (let i = 0; i < node.children.length - 1; i++) {
             const current = node.children[i];
             const next = node.children[i + 1];
@@ -482,9 +484,16 @@ export class FormattingVisitor {
         const indentStr = this.getIndent(indentLevel);
         const childIndentStr = this.getIndent(indentLevel + 1);
 
-        if (node.previousSibling) {
-            this.setGap(node.previousSibling, node, `\n${indentStr}`);
+        const isSimpleList = this.isSimplePrimitiveList(node);
+        const inlineEntireBlock = isSimpleList && !this.exceedsLineLength(node, this.maxLineLength);
+
+        // FIX: Prevent inner dictionary pairs from overwriting the parent's line breaks!
+        // We only adjust the previousSibling gap if we are the top-level initializer.
+        if (node.previousSibling && node.parent?.type !== 'initializer_expression') {
+            this.setGap(node.previousSibling, node, inlineEntireBlock ? ' ' : `\n${indentStr}`);
         }
+
+        let currentLineLength = childIndentStr.length;
 
         for (let i = 0; i < node.children.length - 1; i++) {
             const current = node.children[i];
@@ -493,17 +502,35 @@ export class FormattingVisitor {
             if (current.type === '{' && next.type === '}') {
                 this.setGap(current, next, '');
             } else if (current.type === '{') {
-                this.setGap(current, next, `\n${childIndentStr}`);
+                this.setGap(current, next, inlineEntireBlock ? ' ' : `\n${childIndentStr}`);
+                if (!inlineEntireBlock) {
+                    currentLineLength = childIndentStr.length + next.text.length;
+                }
             } else if (current.type === ',') {
-                this.setGap(current, next, `\n${childIndentStr}`);
+                if (inlineEntireBlock) {
+                    this.setGap(current, next, ' ');
+                } else if (isSimpleList && next.type !== '}') {
+
+                    // THE MAGIC FLOW ALGORITHM
+                    if (currentLineLength + 2 + next.text.length > this.maxLineLength) {
+                        this.setGap(current, next, `\n${childIndentStr}`);
+                        currentLineLength = childIndentStr.length + next.text.length;
+                    } else {
+                        this.setGap(current, next, ' ');
+                        currentLineLength += 2 + next.text.length;
+                    }
+
+                } else if (next.type !== '}') {
+                    this.setGap(current, next, `\n${childIndentStr}`);
+                }
             } else if (next.type === '}') {
-                this.setGap(current, next, `\n${indentStr}`);
+                this.setGap(current, next, inlineEntireBlock ? ' ' : `\n${indentStr}`);
             } else if (next.type === ',') {
                 this.setGap(current, next, '');
             }
         }
 
-        node.namedChildren.forEach(child => this.traverseNode(child, indentLevel + 1));
+        node.namedChildren.forEach(child => this.traverseNode(child, inlineEntireBlock ? indentLevel : indentLevel + 1));
     }
 
     private handleAssignmentExpression(node: Node, indentLevel: number) {
@@ -604,5 +631,29 @@ export class FormattingVisitor {
         }
 
         this.edits.push(vscode.TextEdit.replace(range, expectedIndent));
+    }
+
+    private isSimplePrimitiveList(node: Node): boolean {
+        if (!node || node.namedChildCount === 0) { return false; }
+
+        const simpleTypes = [
+            'string_literal', 'integer_literal', 'real_literal',
+            'boolean_literal', 'character_literal', 'null_literal', 'identifier'
+        ];
+
+        return node.namedChildren.every(c => {
+            if (simpleTypes.includes(c.type)) { return true; }
+            // Ensure nested dictionary pairs are treated as simple!
+            if (c.type === 'initializer_expression' || c.type === 'complex_object_initializer') {
+                return c.namedChildren.every(inner => simpleTypes.includes(inner.type));
+            }
+            return false;
+        });
+    }
+
+    private exceedsLineLength(node: Node, maxLineLength: number = 100): boolean {
+        if (!node) { return false; }
+        // Tree-sitter's node.text gives us the raw string of that entire AST block
+        return node.text.length > maxLineLength;
     }
 }
